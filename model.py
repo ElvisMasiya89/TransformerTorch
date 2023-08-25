@@ -115,3 +115,85 @@ class MultiHeadAttention(nn.Module):
         x = self.wo(x)  # (Batch, Seq_Len, d_model) --> (Batch, Seq_Len, d_model)
         return x
 
+
+class ResidualConnection(nn.Module):
+    def __init__(self, dropout):
+        super().__init__()
+        self.dropout = dropout
+        self.layer_norm = LayerNormalisation()
+
+    def forward(self, x, sub_layer):
+        return x + self.dropout(sub_layer(self.layer_norm(x)))
+
+
+class EncoderLayer(nn.Module):
+    def __init__(self, d_model, num_heads, dff, dropout):
+        super().__init__()
+        self.dff = dff # Feed Forward Neural Network Output Size
+        self.mha = MultiHeadAttention(d_model, num_heads, dropout)
+        self.ffn = FeedForward(d_model, dff, dropout)
+        self.residual_mha = ResidualConnection(dropout)
+        self.residual_ffn = ResidualConnection(dropout)
+
+    def forward(self, x, mask):
+        # Multi-Head Attention sub-layer
+        attn_output = self.residual_mha(x, lambda x: self.mha(x, x, x, mask))
+
+        # FeedForward sub-layer
+        ffn_output = self.residual_ffn(attn_output, self.ffn)
+
+        return ffn_output
+
+
+class Encoder(nn.Module):
+    def __init__(self, num_layers, d_model, num_heads, dff, dropout):
+        super().__init__()
+        self.num_layers = num_layers
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.dff = dff
+        self.dropout = dropout
+
+        self.layer = nn.ModuleList([EncoderLayer(d_model, num_heads, dff, dropout) for _ in range(num_layers)])
+        self.layer_norm = LayerNormalisation()
+
+    def forward(self, x, mask=None):
+        for i in range(self.num_layers):
+            x = self.layer[i](x, mask)
+        return self.layer_norm(x)
+
+
+class DecoderLayer(nn.Module):
+
+    def __init__(self, d_model, num_heads, dff, dropout):
+        super().__init__()
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.dff = dff # Feed Forward Neural Network Output Size
+        self.dropout = dropout
+
+        self.mha = MultiHeadAttention(d_model, num_heads, dropout)
+        self.cross_mha = MultiHeadAttention(d_model, num_heads, dropout)
+        self.ffn = FeedForward(d_model, dff, dropout)
+        self.residual_mha = ResidualConnection(dropout)
+        self.residual_cross_mha = ResidualConnection(dropout)
+        self.residual_ffn = ResidualConnection(dropout)
+
+    def forward(self, x, encoder_output, source_mask, target_mask):
+        # Multi-Head Attention sub-layer
+        attn_output = self.residual_mha(x, lambda x: self.mha(x, x, x, target_mask))
+
+        # Cross-Attention sub-layer
+        cross_attn_output = self.residual_cross_mha(attn_output,
+                                                    lambda x: self.mha(x, encoder_output, encoder_output, source_mask))
+
+        # FeedForward sub-layer
+        ffn_output = self.residual_ffn(cross_attn_output, self.ffn)
+
+        return ffn_output
+
+
+
+
+
+
