@@ -129,7 +129,7 @@ class ResidualConnection(nn.Module):
 class EncoderLayer(nn.Module):
     def __init__(self, d_model, num_heads, dff, dropout):
         super().__init__()
-        self.dff = dff # Feed Forward Neural Network Output Size
+        self.dff = dff  # Feed Forward Neural Network Output Size
         self.mha = MultiHeadAttention(d_model, num_heads, dropout)
         self.ffn = FeedForward(d_model, dff, dropout)
         self.residual_mha = ResidualConnection(dropout)
@@ -169,7 +169,7 @@ class DecoderLayer(nn.Module):
         super().__init__()
         self.d_model = d_model
         self.num_heads = num_heads
-        self.dff = dff # Feed Forward Neural Network Output Size
+        self.dff = dff  # Feed Forward Neural Network Output Size
         self.dropout = dropout
 
         self.mha = MultiHeadAttention(d_model, num_heads, dropout)
@@ -193,7 +193,85 @@ class DecoderLayer(nn.Module):
         return ffn_output
 
 
+class Decoder(nn.Module):
+    def __init__(self, num_layers, d_model, num_heads, dff, dropout):
+        super().__init__()
+        self.num_layers = num_layers
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.dff = dff
+        self.dropout = dropout
+
+        self.layer = nn.ModuleList([DecoderLayer(d_model, num_heads, dff, dropout) for _ in range(num_layers)])
+        self.layer_norm = LayerNormalisation()
+
+    def forward(self, x, encoder_output, source_mask, target_mask):
+        for i in range(self.num_layers):
+            x = self.layer[i](x, encoder_output, source_mask, target_mask)
+        return self.layer_norm(x)
 
 
+class ProjectionLayer(nn.Module):
+    def __init__(self, d_model, vocabulary_size):
+        super().__init__()
+        self.d_model = d_model
+        self.projection = nn.Linear(d_model, vocabulary_size)
+
+    def forward(self, x):
+        # (Batch, Seq_Len, D_Model) -->( Batch, Seq_Len, Vocab_Size)
+        return torch.log_softmax(self.proj(x), dim=-1)
 
 
+class Transformer(nn.Module):
+    def __init__(self, num_layers, d_model, num_heads, dff, dropout, source_embeddings, target_embeddings,
+                 source_pos_encodings, target_pos_encodings, vocabulary_size):
+        super().__init__()
+        self.encoder = Encoder(num_layers, d_model, num_heads, dff, dropout)
+        self.decoder = Decoder(num_layers, d_model, num_heads, dff, dropout)
+        self.projection = ProjectionLayer(d_model, vocabulary_size)
+        self.source_embeddings = source_embeddings
+        self.target_embeddings = target_embeddings
+        self.source_pos_encodings = source_pos_encodings
+        self.target_pos_encodings = target_pos_encodings
+
+    def encode(self, source_input, source_mask):
+        # Embedding and positional encoding for source inputs
+        source_embedded = self.source_embeddings(source_input) + self.source_pos_encodings
+        # Pass source input through the encoder
+        encoder_output = self.encoder(source_embedded, source_mask)
+        return encoder_output
+
+    def decode(self, target_input, encoder_output, source_mask, target_mask):
+        # Embedding and positional encoding for target inputs
+        target_embedded = self.target_embeddings(target_input) + self.target_pos_encodings
+        # Pass target input through the decoder
+        decoder_output = self.decoder(target_embedded, encoder_output, source_mask, target_mask)
+        # Project the decoder output to the vocabulary size
+        output_logits = self.projection(decoder_output)
+        return output_logits
+
+    def forward(self, source_input, target_input, source_mask, target_mask):
+        encoder_output = self.encode(source_input, source_mask)
+        output_logits = self.decode(target_input, encoder_output, source_mask, target_mask)
+        return self.projection(output_logits)
+
+
+def build_transformer(num_layers, d_model, num_heads, dff, dropout, source_vocab_size, target_vocab_size,
+                      max_seq_len):
+    # Create embeddings and positional encodings
+    source_embeddings = InputEmbeddings(d_model, source_vocab_size)
+    target_embeddings = InputEmbeddings(d_model, target_vocab_size)
+    source_pos_encodings = PositionalEncoding(d_model, max_seq_len, dropout)
+    target_pos_encodings = PositionalEncoding(d_model, max_seq_len, dropout)
+
+    # Create the Transformer model
+    transformer = Transformer(num_layers, d_model, num_heads, dff, dropout,
+                              source_embeddings, target_embeddings,
+                              source_pos_encodings, target_pos_encodings, target_vocab_size)
+
+    # Initialize the parameters
+    for p in transformer.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
+
+    return transformer
