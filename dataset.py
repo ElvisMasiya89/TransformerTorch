@@ -22,9 +22,9 @@ class BilingualDataset(Dataset):
         self.target_lang = target_lang
         self.seq_len = seq_len
 
-        self.sos_token = torch.Tensor([tokenizer_source.token_to_id(['[SOS]'])], dtype=torch.int64)
-        self.eos_token = torch.Tensor([tokenizer_source.token_to_id(['[EOS]'])], dtype=torch.int64)
-        self.pad_token = torch.Tensor([tokenizer_source.token_to_id(['[PAD]'])], dtype=torch.int64)
+        self.sos_token = torch.tensor([tokenizer_source.token_to_id('[SOS]')], dtype=torch.int64)
+        self.eos_token = torch.tensor([tokenizer_source.token_to_id('[EOS]')], dtype=torch.int64)
+        self.pad_token = torch.tensor([tokenizer_source.token_to_id('[PAD]')], dtype=torch.int64)
 
     def __len__(self):
         """Returns the total number of samples in the dataset."""
@@ -74,7 +74,7 @@ class BilingualDataset(Dataset):
             'decoder_input': decoder_input,
             'encoder_mask': (encoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int(),  # (1,1,Seq_Len)
             'decoder_mask': (encoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int()
-                            & self.casual_mask(decoder_input.size(0)),  # (1,1,Seq_Len) & (1,Seq_Len , Seq_Len)
+                            & casual_mask(decoder_input.size(0)),  # (1,1,Seq_Len) & (1,Seq_Len , Seq_Len)
             'target_label': target_label,
             'source_text': source_text,
             'target_text': target_text
@@ -97,15 +97,18 @@ class BilingualDataset(Dataset):
             sequence = sequence[:seq_len]
         return sequence
 
-    def casual_mask(self, seq_len):
-        """
-        Creates a causal mask for the decoder.
 
-        Args:
-            seq_len (int): Sequence length.
+def casual_mask(seq_len):
+    """
+    Creates a causal mask for the decoder.
 
-        Returns:
-            causal_mask (Tensor): Causal mask.
-        """
-        causal_mask = torch.triu(torch.ones(1, seq_len, seq_len), diagonal=1).type(torch.int)
-        return causal_mask == 0
+    Args:
+        seq_len (int): Sequence length.
+
+    Returns:
+        causal_mask (Tensor): Causal mask.
+    """
+    causal_mask = torch.triu(torch.ones(1, seq_len, seq_len), diagonal=1).type(torch.int)
+    return causal_mask == 0
+
+
