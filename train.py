@@ -162,8 +162,8 @@ def train_model(config):
 
             # Run the tensors through the transformer
 
-            encoder_output = model.encoder(encoder_input, encoder_mask)  # (Batch , Seq_Len, d_model)
-            decoder_output = model.decoder(decoder_input, encoder_output, encoder_mask,
+            encoder_output = model.encode(encoder_input, encoder_mask)  # (Batch , Seq_Len, d_model)
+            decoder_output = model.decode(decoder_input, encoder_output, encoder_mask,
                                            decoder_mask)  # (Batch  Seq_Len, d_model)
             projection_output = model.project(decoder_output)  # (Batch, Seq_Len, target_vocab_size)
 
