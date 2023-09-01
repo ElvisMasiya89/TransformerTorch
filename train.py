@@ -66,7 +66,7 @@ def get_dataset(config):
 
     # Set the maximum sequence lengths in the configuration
     config['seq_len'] = max_len_source
-    config['seq_len'] = max_len_source
+    config['max_seq_len'] = max_len_source
 
     print(f" Max length of source text: {max_len_source}")
     print(f" Max length of target text: {max_len_target}")
@@ -162,8 +162,8 @@ def train_model(config):
 
             # Run the tensors through the transformer
 
-            encoder_output = model.encoder(encoder_input, encoder_mask)  # (Batch , Seq_Len, d_model)
-            decoder_output = model.decoder(decoder_input, encoder_output, encoder_mask,
+            encoder_output = model.encode(encoder_input, encoder_mask)  # (Batch , Seq_Len, d_model)
+            decoder_output = model.decode(decoder_input, encoder_output, encoder_mask,
                                            decoder_mask)  # (Batch  Seq_Len, d_model)
             projection_output = model.project(decoder_output)  # (Batch, Seq_Len, target_vocab_size)
 

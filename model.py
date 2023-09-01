@@ -2,6 +2,10 @@ import math
 import torch
 import torch.nn as nn
 
+import math
+import torch
+import torch.nn as nn
+
 
 class InputEmbeddings(nn.Module):
     def __init__(self, d_model, vocab_size):
@@ -12,7 +16,7 @@ class InputEmbeddings(nn.Module):
 
     def forward(self, x):
         print("InputEmbeddings - Input x shape:", x.shape)
-        embeddings = self.word_embeddings(x) * math.sqrt(self.d_model)  # Correct the scaling factor here
+        embeddings = self.word_embeddings(x) * math.sqrt(self.d_model)
         print("InputEmbeddings - Output embeddings shape:", embeddings.shape)
         return embeddings
 
@@ -41,7 +45,7 @@ class PositionalEncoding(nn.Module):
 
 
 class LayerNormalisation(nn.Module):
-    def __init__(self, epsilon=10 ** -6):
+    def __init__(self, epsilon=1e-6):
         super().__init__()
         self.epsilon = epsilon
         self.alpha = nn.Parameter(torch.ones(1))
@@ -68,7 +72,6 @@ class FeedForward(nn.Module):
         x = self.linear2(self.dropout(torch.relu(self.linear1(x))))
         print("FeedForward - Output x shape:", x.shape)
         return x
-
 
 
 class MultiHeadAttention(nn.Module):
