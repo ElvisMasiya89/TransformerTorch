@@ -29,6 +29,7 @@ class PositionalEncoding(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         pe = torch.zeros(seq_len, d_model)
+
         position = torch.arange(0, seq_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
@@ -39,7 +40,7 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x):
         print("PositionalEncoding - Input x shape:", x.shape)
-        x = x + self.pe[:, :x.shape[1], :]
+        x = x + (self.pe[:, :x.shape[1], :]).requires_grad_(False)
         print("PositionalEncoding - Output x shape:", x.shape)
         return self.dropout(x)
 
@@ -109,32 +110,24 @@ class MultiHeadAttention(nn.Module):
         return attn, attention_scores
 
     def forward(self, q, k, v, mask):
-        print("Input q shape:", q.shape)
-        print("Input k shape:", k.shape)
-        print("Input v shape:", v.shape)
 
         q = self.wq(q)
-        print("q after wq shape:", q.shape)
+
         k = self.wk(k)
-        print("k after wk shape:", k.shape)
+
         v = self.wv(v)
-        print("v after wv shape:", v.shape)
 
         q = q.view(q.shape[0], q.shape[1], self.num_heads, self.d_k).transpose(1, 2)
-        print("q after view and transpose shape:", q.shape)
+
         k = k.view(k.shape[0], k.shape[1], self.num_heads, self.d_k).transpose(1, 2)
-        print("k after view and transpose shape:", k.shape)
+
         v = v.view(v.shape[0], v.shape[1], self.num_heads, self.d_k).transpose(1, 2)
-        print("v after view and transpose shape:", v.shape)
 
         x, self.attention_scores = MultiHeadAttention.attention(q, k, v, mask, self.dropout)
-        print("x after attention shape:", x.shape)
 
         x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.num_heads * self.d_k)
-        print("x after transpose and view shape:", x.shape)
 
         x = self.wo(x)
-        print("x after wo shape:", x.shape)
 
         return x
 
